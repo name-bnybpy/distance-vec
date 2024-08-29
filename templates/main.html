@@ -1,0 +1,943 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <title>Woaw</title>
+
+    <style>
+        .node {
+            stroke: #333;
+            stroke-width: 1.5px;
+        }
+        .link {
+            stroke: #999;
+            stroke-opacity: 0.6;
+        }
+        .label {
+            font-size: 12px;
+            pointer-events: none;
+        }
+        .message {
+            fill: red;
+            stroke: none;
+            pointer-events: none;
+        }
+        .arrow {
+            fill: none;
+            stroke: black;
+            stroke-width: 2;
+        }
+        .fixed-container {
+            width: 700px; /* desired fixed width in pixels */
+            height: 600px; /* desired fixed height in pixels */
+            margin: 0 auto; /* center the container horizontally */
+        }
+        .tab-container {
+            height: 550px;
+            overflow-y: scroll;
+        }
+        .text-overlay {
+            position: relative;
+            transform: translateY(-1250%);
+        }
+    </style>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+    <!-- D3.js -->
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+</head>
+
+<body>
+
+    <div class="mt-5 mx-5 container-xxl">
+        <div class="d-flex flex-row p-0 m-0">
+            <div class="col-8">
+                <div class="fixed-container">
+                    <h1 class="mx-4">Distance Vector Algo Simulator</h1>
+                    <svg width="700" height="500">
+                        <defs>
+                            <marker id="arrowhead" viewBox="0 -5 10 10" refX="5" refY="0" markerWidth="6" markerHeight="6" orient="auto">
+                                <path d="M0,-5L10,0L0,5Z" fill="black" />
+                            </marker>
+                        </defs>
+                    </svg>
+                    <h2 class="text-overlay ms-4" id="timestampValue" style="visibility: hidden;">0</h2>
+                    <div class="d-flex justify-content-center">
+                        <button type="button" class="btn btn-primary px-3 me-3" id="runButton">Run</button>
+                        <div class="col-7 mt-2">
+                            <input type="range" class="form-range" min="0" max="100" step="0.5" value="0" id="timeline" disabled>
+                        </div>
+                        <button type="button" class="btn btn-primary px-3 ms-3" id="playButton" disabled><i class="bi bi-play-fill"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-4">
+                <ul class="nav nav-tabs" id="myTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-container" type="button" role="tab" aria-controls="overview" aria-selected="true">Overview</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="node-tab" data-bs-toggle="tab" data-bs-target="#node-container" type="button" role="tab" aria-controls="node" aria-selected="false">Node View</button>
+                    </li>
+                </ul>
+                <div class="tab-content tab-container" id="myTabContent">
+                    <div class="tab-pane fade show active" id="overview-container" role="tabpanel" aria-labelledby="overview-tab">
+                        <div class="d-flex justify-content-center">
+                            <div class="col-11" id="overview">
+                                <h5 class="mt-4">Run the simulator to see how routing tables change over time</h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="node-container" role="tabpanel" aria-labelledby="node-tab">
+                        <div class="d-flex justify-content-center">
+                            <div class="col-11" id="node">
+                                <h5 class="mt-4">Click on a node to see how its distance table and routing table changes over time</h5>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-center mt-2">
+                    <button type="button" class="btn btn-primary px-3 me-3" id="addNode">Add Node</button>
+                    <button type="button" class="btn btn-primary px-3 me-3" id="editNode" data-bs-toggle="modal" data-bs-target="#edit-modal" disabled>Edit Node</button> 
+                    <button type="button" class="btn btn-primary px-3 me-3" id="removeNode" disabled>Remove Node</button>
+                </div>
+                <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header">
+                      <img src="..." class="rounded me-2" alt="...">
+                      <strong class="me-auto">Bootstrap</strong>
+                      <small>11 mins ago</small>
+                      <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                      Hello, world! This is a toast message.
+                    </div>
+                  </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Node Modal -->
+    <div class="modal fade" id="edit-modal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="edit-title" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header" id="editHeader"></div>
+            <div class="modal-body p-3" id="editBody"></div>
+            <div class="modal-footer" id="editFooter"></div>
+        </div>
+        </div>
+    </div>
+
+    <!-- Error Toast -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+        <div id="errorToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header px-1" id="errorHeader"></div>
+            <div class="toast-body" id="errorBody"></div>
+        </div>
+    </div>
+
+
+    <script>
+        document.querySelector('.nav-tabs .nav-link').click();
+        // Load the graph data from Jinja
+        graph = {{ graph | tojson }}; // stores the coordinates of all UI elements
+        graph_logic = {{ graph | tojson }};  // stores the logical state of the graph
+
+        running = false;
+        isend = false;
+        selectedNode = null;
+
+        const svg = d3.select("svg");
+        const width = +svg.attr("width");
+        const height = +svg.attr("height");
+
+        // Create a force simulation
+        var simulation = d3.forceSimulation(graph.nodes)
+            .force("link", d3.forceLink(graph.links).id(d => d.id).distance(100))
+            .force("charge", d3.forceManyBody().strength(-20))
+            .force("center", d3.forceCenter(width / 2, height / 2));
+
+        // Draw the links (lines)
+        const link = svg.append("g")
+            .attr("class", "links")
+            .selectAll("line")
+            .data(graph.links)
+            .enter().append("line")
+            .attr("class", "link");
+
+        // Draw the nodes (circles)
+        const node = svg.append("g")
+            .attr("class", "nodes")
+            .selectAll("circle")
+            .data(graph.nodes)
+            .enter().append("circle")
+            .attr("class", "node")
+            .attr("r", 10)
+            .attr("fill", "blue")
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended))
+            .on("click", handleClick);
+
+        // Add labels to the nodes
+        const nodeLabels = svg.append("g")
+            .attr("class", "labels")
+            .selectAll("text")
+            .data(graph.nodes)
+            .enter().append("text")
+            .attr("class", "label")
+            .attr("x", 12)
+            .attr("y", 3)
+            .text(d => d.id);
+
+        // Labels for links
+        const linkLabels = svg.append("g")
+            .attr("class", "link-labels")
+            .selectAll("text")
+            .data(graph.links)
+            .enter().append("text")
+            .attr("class", "link-label")
+            .text(d => d.label);
+
+        const messageGroups = svg.append("g")
+            .attr("class", "messages")
+            .selectAll("g")
+            .data(graph.messages)
+            .enter().append("g")
+            .attr("class", "message-group");
+
+        const messageCircles = messageGroups.append("circle")
+            .attr("class", "message")
+            .attr("r", 5)
+            .attr("fill", "orange");
+
+        const messageArrows = messageGroups.append("line")
+            .attr("class", "message-arrow")
+            .attr("stroke", "black")
+            .attr("stroke-width", 2)
+            .attr("marker-end", "url(#arrowhead)");
+
+        // Update the simulation
+        simulation.on("tick", () => {
+            d3.selectAll(".link")
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            d3.selectAll(".node")
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y);
+
+            d3.selectAll(".label")
+                .attr("x", d => d.x + 12)
+                .attr("y", d => d.y - 3);
+
+            d3.selectAll(".link-label")
+                .attr("x", d => (d.source.x + d.target.x) / 2 + 6)
+                .attr("y", d => (d.source.y + d.target.y) / 2 - 6);
+
+            // Update message positions during the tick
+            d3.selectAll(".message-group").attr("transform", d => {
+                const position = getMessagePosition(d);
+                return `translate(${position.x}, ${position.y})`;
+            });
+
+            // Update the message arrows during the tick
+            d3.selectAll(".message-arrow")
+                .attr("x1", d => getArrowDirection(d).arrowStartX)
+                .attr("y1", d => getArrowDirection(d).arrowStartY)
+                .attr("x2", d => getArrowDirection(d).arrowEndX)
+                .attr("y2", d => getArrowDirection(d).arrowEndY);
+                });
+                
+        function getMessagePosition(message) {
+            const source = graph.nodes.find(n => n.id === message.source);
+            const target = graph.nodes.find(n => n.id === message.target);
+
+            const x = source.x + (target.x - source.x) * message.progress;
+            const y = source.y + (target.y - source.y) * message.progress;
+
+            return { x, y };
+        }
+
+        const messageRadius = 5
+
+        function getArrowDirection(message) {
+            const source = graph.nodes.find(n => n.id === message.source);
+            const target = graph.nodes.find(n => n.id === message.target);
+            
+            const dx = (target.x - source.x) * 0.1;  // Adjust the multiplier for arrow length
+            const dy = (target.y - source.y) * 0.1;
+
+            // Normalize the direction vector
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const unitX = dx / length;
+            const unitY = dy / length;
+
+            // Position the arrow's start point just outside the message circle
+            const arrowStartX = unitX * messageRadius * 1.4;
+            const arrowStartY = unitY * messageRadius * 1.4;
+
+            // Adjust arrow length as needed
+            const arrowLength = 5;  // Length of the arrow
+            const arrowEndX = arrowStartX + unitX * arrowLength;
+            const arrowEndY = arrowStartY + unitY * arrowLength;
+
+            return { arrowStartX, arrowStartY, arrowEndX, arrowEndY }
+        }
+
+        // Drag functions
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        function updateMessages(newMessages) {
+            // Update the message groups (this will update both circles and arrows)
+            d3.selectAll(".message-group").remove();
+
+            const messageGroups = svg.append("g")
+                .attr("class", "messages")
+                .selectAll("g")
+                .data(newMessages)
+                .enter().append("g")
+                .attr("class", "message-group")
+                .attr("transform", d => {
+                    const position = getMessagePosition(d);
+                    return `translate(${position.x}, ${position.y})`;
+                });
+
+            // Draw message circles
+            messageGroups.append("circle")
+                .attr("class", "message")
+                .attr("r", 5)
+                .attr("fill", "orange");
+
+            // Draw message arrows
+            messageGroups.append("line")
+                .attr("class", "message-arrow")
+                .attr("stroke", "black")
+                .attr("stroke-width", 2)
+                .attr("marker-end", "url(#arrowhead)")
+                .attr("x1", d => getArrowDirection(d).arrowStartX)
+                .attr("y1", d => getArrowDirection(d).arrowStartY)
+                .attr("x2", d => getArrowDirection(d).arrowEndX)
+                .attr("y2", d => getArrowDirection(d).arrowEndY);
+        }
+
+        document.getElementById("runButton").addEventListener("click", function() {
+            fetch('/run')
+                .then(response => response.json())
+                .then(data => {
+                    // Update the slider with the new max value and enable it
+                    running = true;
+                    document.getElementById('timeline').max = data.max_value;
+                    document.getElementById('timeline').disabled = false;
+                    document.getElementById('playButton').disabled = false;
+                    document.getElementById('addNode').disabled = true;
+                    document.getElementById('editNode').disabled = true;
+                    document.getElementById('removeNode').disabled = true;
+                    this.disabled = true;
+                    document.getElementById('timestampValue').style.visibility = "visible";
+                    updateMessages(data.messages);
+                    fetchOverview(0);
+                })
+                .catch(error => console.error('Error computing max value:', error));
+        });
+
+        document.getElementById("timeline").addEventListener("input", function() {
+            const timestamp = this.value;
+            const maxTimestamp = this.max;
+            document.getElementById('timestampValue').textContent = timestamp;
+            fetchMessages(timestamp);
+            fetchOverview(timestamp);
+            if (timestamp == maxTimestamp) {
+                const icon = document.getElementById('playButton').querySelector('i')
+                if (icon) {
+                    icon.classList.remove('bi-play-fill');
+                    icon.classList.remove('bi-pause-fill');
+                    icon.classList.add('bi-repeat');
+                }
+                isend = true;
+                document.getElementById('addNode').disabled = false;
+                if (selectedNode){
+                    document.getElementById('editNode').disabled = false;
+                    document.getElementById('removeNode').disabled = false;
+                }
+            } else {
+                const icon = document.getElementById('playButton').querySelector('i')
+                if (icon) {
+                    icon.classList.remove('bi-play-fill');
+                    icon.classList.remove('bi-repeat');
+                    icon.classList.add('bi-play-fill');
+                }
+                isend = false;
+                document.getElementById('addNode').disabled = true;
+                document.getElementById('editNode').disabled = true;
+                document.getElementById('removeNode').disabled = true;
+            }
+        });
+
+        // Create a table dynamically
+        function createTable(tableData, layout_id, add_rows, editable) {
+            //console.log(tableData)
+            //console.log(Object.keys(Object.values(tableData)[0]))
+            console.log("CREATING TABLE")
+            const container = document.getElementById(layout_id);
+            //const firstTable = Object.values(tableData)[0];
+            const headers = Object.keys(tableData);
+
+            const table = document.createElement('table');
+            table.classList.add('table', 'mt-2');
+            table.id = layout_id + 'Table';
+
+            // Create the table header
+            const thead = document.createElement('thead');
+            thead.classList.add("table-primary")
+            const headerRow = document.createElement('tr');
+
+            // Add a blank header for the row index
+            const blankHeader = document.createElement('th');
+            blankHeader.textContent = "dest";
+            headerRow.appendChild(blankHeader);
+
+            headers.forEach(col => {
+                const th = document.createElement('th');
+                th.textContent = col;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+            // Create the table body
+            const tbody = document.createElement('tbody');
+
+            Object.keys(Object.values(tableData)[0]).forEach(row => {
+                const tr = document.createElement('tr');
+
+                // Add the row index as the first cell
+                const indexCell = document.createElement('td');
+                indexCell.textContent = row;
+                if (editable) {
+                    indexCell.setAttribute('contenteditable', 'true');
+                }   
+                tr.appendChild(indexCell);
+
+                headers.forEach(header => {
+                    const td = document.createElement('td');
+                    td.textContent = tableData[header][row] || '';
+                    if (editable) {
+                        td.setAttribute('contenteditable', 'true');
+                    }
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+
+                // Add the table to the container
+            });
+            
+            for (var row=0; row < add_rows; row++){ // adds additional rows for adding 
+                const tr = document.createElement('tr');
+                for (var col=0; col < headers.length + 1; col++){
+                    const td = document.createElement('td');
+                    td.textContent = "";
+                    if (editable) {
+                        td.setAttribute('contenteditable', 'true');
+                    }
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+            table.appendChild(tbody);
+
+            container.appendChild(table);
+        }
+
+
+        function fetchOverview(timestamp){
+            // Clear the existing content in the div
+            // console.log("WHY AREN't YOU CLICKING")
+            const div = document.getElementById("overview");
+            div.innerHTML = "";
+
+            fetch(`/get_from_time_overview?timestamp=${timestamp}`)
+                .then(response => response.json())
+                .then(data => {
+                    //console.log(data)
+                    // Iterate over the tables and create them
+                    Object.keys(data).forEach(tableKey => {
+                        if (!(Object.keys(data[tableKey]).length === 0)){
+                            const header = document.createElement("h5");
+                            header.textContent = "Node " + tableKey;
+                            header.classList.add('ms-2', 'mt-4', 'me-0', 'mb-0')
+                            div.appendChild(header);
+                            const tableData = data[tableKey];
+                            console.log("WHAT");
+                            const table = createTable(tableData, 'overview', 0, false);
+                            console.log("THE");
+                            div.appendChild(document.createElement("hr"));
+                        }
+                    });
+                })
+                .catch(error => console.error('Error loading tables:', error));
+        }
+
+        function fetchMessages(timestamp) {
+            fetch(`/get_from_time?timestamp=${timestamp}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data)
+                    console.log(graph_logic)
+                    console.log(data['links'])
+                    console.log(graph_logic['links'])
+                    console.log(checkSame(graph_logic['links'], data['links']))
+                    if (checkSame(graph_logic['links'], data['links']) & checkSame(graph_logic['nodes'], data['nodes'])){
+                        updateMessages(data['messages']);
+                    } else {
+                        resetGraph(data)
+                        updateMessages(data)
+                    }
+                })
+                .catch(error => console.error('Error fetching messages:', error));
+        }
+
+        function checkSame(dict1, dict2) { // for graph checking, checks whether the graph is correct. Since the order is saved, 
+                                           // there should be no need for sorting and direct 1 to 1 comparison should work
+            const dict1Json = JSON.stringify(dict1);
+            const dict2Json = JSON.stringify(dict2);
+            console.log(dict1Json)
+            console.log(dict2Json)
+            return (dict1Json === dict2Json) 
+        }
+
+        let isPlaying = false;
+        let intervalId = null;
+
+        document.getElementById('playButton').addEventListener('click', function() {
+            console.log("PLAY BUTTON CLICKED");
+            const icon = this.querySelector('i')
+            if (icon.classList.contains('bi-repeat')){
+                fetch('/reset')
+                .then(response => response.json())
+                .then(data => {
+                    // Update the slider with the new max value and enable it
+                    running = false;
+                    isend = false;
+                    selectedNode = null;
+                    document.getElementById('timeline').value = 0;
+                    document.getElementById('timeline').disabled = true;
+                    document.getElementById('runButton').disabled = false;
+                    document.getElementById('timestampValue').textContent = 0;
+                    document.getElementById('timestampValue').style.visibility = "hidden";
+                    document.getElementById('addNode').disabled = true;
+                    document.getElementById('editNode').disabled = true;
+                    document.getElementById('removeNode').disabled = true;
+                    document.getElementById('overview').innerHTML = ""
+                    const overviewHeader = document.createElement("h5");
+                    overviewHeader.textContent = "Run the simulator to see how routing tables change over time";
+                    overviewHeader.classList.add('mt-4');
+                    document.getElementById('overview').appendChild(overviewHeader);
+                    document.getElementById('node').innerHTML = ""
+                    const nodeHeader = document.createElement("h5");
+                    nodeHeader.textContent = "Click on a node to see how its distance table and routing table changes over time";
+                    nodeHeader.classList.add('mt-4');
+                    document.getElementById('node').appendChild(nodeHeader);
+
+                    icon.classList.remove('bi-repeat');
+                    icon.classList.add('bi-play-fill');
+                    this.disabled = true;
+                    resetGraph(data)
+                })
+                .catch(error => console.error('Something went horribly wrong', error));
+            } else if (isPlaying) {
+                // Pause the ticking
+                clearInterval(intervalId);
+                icon.classList.remove('bi-pause-fill');
+                icon.classList.add('bi-play-fill');
+                isPlaying = false;
+            } else {
+                // Start ticking through the timestamps
+                icon.classList.remove('bi-play-fill');
+                icon.classList.add('bi-pause-fill');
+                isPlaying = true;
+
+                const slider = document.getElementById('timeline');
+                const maxTimestamp = slider.max;
+
+                intervalId = setInterval(() => {
+                    let currentValue = parseFloat(slider.value);
+                    if (currentValue < maxTimestamp) {
+                        slider.value = currentValue + 0.5;
+                        document.getElementById('timestampValue').textContent = slider.value;
+                        fetchMessages(slider.value);
+                        fetchOverview(slider.value);
+                        isend = false;
+                        document.getElementById('addNode').disabled = true;
+                        document.getElementById('editNode').disabled = true;
+                        document.getElementById('removeNode').disabled = true;
+                    } else {
+                        // Stop ticking if the max value is reached
+                        clearInterval(intervalId);
+                        icon.classList.remove('bi-pause-fill');
+                        icon.classList.add('bi-repeat');
+                        isPlaying = false;
+                        isend = true;
+                        document.getElementById('addNode').disabled = false;
+                        if (selectedNode){  
+                            document.getElementById('editNode').disabled = false;                          
+                            document.getElementById('removeNode').disabled = true;
+                        }
+                    }
+                }, 1000); // Adjust the interval time (in milliseconds) as needed
+            }
+        });
+        
+        document.getElementById('addNode').addEventListener('click', function() {
+            fetch('/add_node')
+                .then(response => response.json())
+                .then(data => {
+                    resetGraph(data);
+                })
+                .catch(error => console.error('Something went horribly wrong', error));
+        });
+
+        document.getElementById('removeNode').addEventListener('click', function(){
+            fetch(`/remove_node?name=${selectedNode}`)
+                .then(response => response.json())
+                .then(data => {
+                    selectedNode = null;
+                    resetGraph(data);
+                    document.getElementById('editNode').disabled = true;
+                    document.getElementById('removeNode').disabled = true;
+                    document.getElementById('node').innerHTML = ""
+                    const nodeHeader = document.createElement("h5");
+                    nodeHeader.textContent = "Click on a node to see how its distance table and routing table changes over time";
+                    nodeHeader.classList.add('mt-4');
+                    document.getElementById('node').appendChild(nodeHeader);
+                    if (running){
+                        const icon = document.getElementById("runButton").disabled = false; // allows user to continue running sim from that point
+                    }
+                })
+                .catch(error => console.error('Something went horribly wrong', error));
+        });
+
+        document.getElementById('editNode').addEventListener('click', function() {
+            const modalHeader = document.getElementById('editHeader');
+            const modalBody = document.getElementById('editBody');
+            const modalFooter = document.getElementById('editFooter');
+
+            modalHeader.innerHTML = '';
+            modalBody.innerHTML = '';
+            modalFooter.innerHTML = '';
+
+            const headerContent = document.createElement('h5');
+            headerContent.className = 'modal-title';
+            headerContent.id = 'edit-title';
+            headerContent.textContent = 'Editing Node ' + selectedNode;
+            modalHeader.appendChild(headerContent);
+
+            const closeButton = document.createElement('button');
+            closeButton.type = 'button';
+            closeButton.className = 'btn-close';
+            closeButton.setAttribute('data-bs-dismiss', 'modal');
+            closeButton.setAttribute('aria-label', 'Close');
+            modalHeader.appendChild(closeButton);
+
+            const bodyContent = document.createElement('h4');
+            bodyContent.textContent = 'Connections:';
+            bodyContent.classList.add('mb-3');
+            modalBody.appendChild(bodyContent);
+
+            fetch(`/get_connection?name=${selectedNode}`) // wooh layering
+                .then(response => response.json())
+                .then(data => {
+                    createTable(data, 'editBody', 3, true); // allows user to add 3 more connections at a time (screw numrow selector)
+                })
+                .catch(error => console.error('Something went horribly wrong', error));
+
+            const confirmButton = document.createElement('button');
+            // confirmButton.id = 'confirmEdit'
+            confirmButton.type = 'button';
+            confirmButton.classList.add('btn', 'btn-primary');
+            confirmButton.setAttribute('data-bs-dismiss', 'modal');
+            confirmButton.textContent = 'Confirm';
+            confirmButton.addEventListener('click', function() {
+                const table = document.getElementById('editBodyTable');
+                const rows = table.querySelectorAll('tbody tr');
+                let data = {};
+
+                // Loop through each row
+                rows.forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    const index = cells[0].textContent; // First cell is the index key
+                    const rowDict = {};
+
+                    // Loop through each cell (starting from the second one)
+                    for (let i = 1; i < cells.length; i++) {
+                        // Use table headers as keys for inner dictionaries
+                        const header = table.querySelectorAll('thead th')[i].textContent;
+                        rowDict[header] = cells[i].textContent;
+                    }
+
+                    // Add the rowDict to the main data object using index as the key
+                    data[index] = rowDict;
+                });
+
+                // Log the data object to the console for debugging
+                console.log(data);
+
+                // Send the data to the backend
+                fetch('/edit_node', { // dang 
+                    method: 'POST', 
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({'node': selectedNode, 'connections': data}), // Convert the data to JSON
+                })
+                .then(response => {
+                    if (!response.ok){
+                        return response.json().then(errorData => {
+                            throw new Error(errorData.error || 'Unknown error');
+                        });
+                    }
+                    return response.json()
+                }) 
+                .then(responseData => {
+                    console.log('Response from backend:', responseData);
+                    resetGraph(responseData);
+                    if (running){
+                        const icon = document.getElementById("runButton").disabled = false; // allows user to continue running sim from that point
+                    }
+                })
+                .catch((error) => {
+                    showToast(error.message);
+                });
+            });
+            modalFooter.appendChild(confirmButton);
+        });
+
+        function showToast(message) {
+            const toastHeader = document.getElementById('errorHeader');
+            const toastBody = document.getElementById('errorBody');
+
+            toastHeader.innerHTML = '';
+            toastBody.innerHTML = '';
+            
+            const div = document.createElement('div');
+            div.classList.add('d-flex', 'justify-content-between', 'align-items-center', 'w-100', 'ps-2', 'pe-4');
+            const header = document.createElement('h4');
+            header.textContent = "Error"
+            const closeButton = document.createElement('button');
+            closeButton.classList.add('btn-close');
+            closeButton.setAttribute('data-bs-dismiss', 'toast');
+            closeButton.setAttribute('aria-label', 'Close');
+            closeButton.classList.add('mt')
+            const body = document.createElement('p');
+            body.textContent = message;
+
+            div.appendChild(header);
+            div.appendChild(closeButton);
+            toastHeader.appendChild(div);
+            toastBody.appendChild(body);
+
+            const toast = new bootstrap.Toast(document.getElementById('errorToast'));
+            toast.show();
+        }
+
+
+        function resetGraph(newGraph) {
+            d3.selectAll(".node").remove();
+            d3.selectAll(".label").remove();
+            d3.selectAll(".link").remove();
+            d3.selectAll(".link-label").remove();
+            d3.selectAll(".message-group").remove();
+            
+            console.log("RESETTING")
+            console.log(graph_logic)
+            graph = newGraph
+            graph_logic = JSON.parse(JSON.stringify(newGraph))
+
+            // Create a force simulation
+            simulation = d3.forceSimulation(graph.nodes)
+                .force("link", d3.forceLink(graph.links).id(d => d.id).distance(100))
+                .force("charge", d3.forceManyBody().strength(-20))
+                .force("center", d3.forceCenter(width / 2, height / 2));
+
+            // Draw the links (lines)
+            const link = svg.append("g")
+                .attr("class", "links")
+                .selectAll("line")
+                .data(graph.links)
+                .enter().append("line")
+                .attr("class", "link")
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            // Draw the nodes (circles)
+            const node = svg.append("g")
+                .attr("class", "nodes")
+                .selectAll("circle")
+                .data(graph.nodes)
+                .enter().append("circle")
+                .attr("class", "node")
+                .attr("r", 10)
+                .attr("fill", "blue")
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended))
+                .on("click", handleClick)
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y);
+
+            // Add labels to the nodes
+            const nodeLabels = svg.append("g")
+                .attr("class", "labels")
+                .selectAll("text")
+                .data(graph.nodes)
+                .enter().append("text")
+                .attr("class", "label")
+                .attr("x", 12)
+                .attr("y", 3)
+                .text(d => d.id)
+                .attr("x", d => d.x + 12)
+                .attr("y", d => d.y - 3);
+
+            // Labels for links
+            const linkLabels = svg.append("g")
+                .attr("class", "link-labels")
+                .selectAll("text")
+                .data(graph.links)
+                .enter().append("text")
+                .attr("class", "link-label")
+                .text(d => d.label)
+                .attr("x", d => (d.source.x + d.target.x) / 2 + 6)
+                .attr("y", d => (d.source.y + d.target.y) / 2 - 6);
+
+            const messageGroups = svg.append("g")
+                .attr("class", "messages")
+                .selectAll("g")
+                .data(graph.messages)
+                .enter().append("g")
+                .attr("class", "message-group")
+                .attr("transform", d => {
+                    const position = getMessagePosition(d);
+                    return `translate(${position.x}, ${position.y})`;
+                });
+
+            // Draw message circles
+            messageGroups.append("circle")
+                .attr("class", "message")
+                .attr("r", 5)
+                .attr("fill", "orange");
+
+            // Draw message arrows
+            messageGroups.append("line")
+                .attr("class", "message-arrow")
+                .attr("stroke", "black")
+                .attr("stroke-width", 2)
+                .attr("marker-end", "url(#arrowhead)")
+                .attr("x1", d => getArrowDirection(d).arrowStartX)
+                .attr("y1", d => getArrowDirection(d).arrowStartY)
+                .attr("x2", d => getArrowDirection(d).arrowEndX)
+                .attr("y2", d => getArrowDirection(d).arrowEndY);
+
+            simulation.on("tick", () => {
+                d3.selectAll(".link")
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+
+                d3.selectAll(".node")
+                    .attr("cx", d => d.x)
+                    .attr("cy", d => d.y);
+
+                d3.selectAll(".label")
+                    .attr("x", d => d.x + 12)
+                    .attr("y", d => d.y - 3);
+
+                d3.selectAll(".link-label")
+                    .attr("x", d => (d.source.x + d.target.x) / 2 + 6)
+                    .attr("y", d => (d.source.y + d.target.y) / 2 - 6);
+
+                // Update message positions during the tick
+                d3.selectAll(".message-group").attr("transform", d => {
+                    const position = getMessagePosition(d);
+                    return `translate(${position.x}, ${position.y})`;
+                });
+
+                // Update the message arrows during the tick
+                d3.selectAll(".message-arrow")
+                    .attr("x1", d => getArrowDirection(d).arrowStartX)
+                    .attr("y1", d => getArrowDirection(d).arrowStartY)
+                    .attr("x2", d => getArrowDirection(d).arrowEndX)
+                    .attr("y2", d => getArrowDirection(d).arrowEndY);
+                    });
+        }
+
+        // Handle click event on nodes
+        function handleClick(event, d) {
+            console.log(`You clicked on node ${d.id}`);
+            selectedNode = d.id;
+            const div = document.getElementById("node");
+            div.innerHTML = "";
+            const header = document.createElement("h4");
+            header.textContent = "Node " + selectedNode;
+            header.classList.add('mt-4', 'me-0', 'mb-2');
+            div.appendChild(header);
+            if (isend || !running){
+                document.getElementById('editNode').disabled = false;
+                document.getElementById("removeNode").disabled = false;
+            }
+            console.log(running)
+            if (running){
+                fetch(`/get_node_logs?name=${selectedNode}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log(data)
+                        // Iterate over the tables and create them
+                        Object.keys(data).forEach(tableKey => {
+                            const header = document.createElement("h5");
+                            header.textContent = "Time: " + tableKey;
+                            header.classList.add('mt-2', 'me-0', 'mb-1')
+                            div.appendChild(header);
+                            const distance = document.createElement("h5");
+                            distance.textContent = "Distance Table"
+                            div.appendChild(distance);
+                            createTable(data[tableKey]['distance_table'], 'node', 0, false)
+                            const routing = document.createElement("h5");
+                            routing.textContent = "Routing Table"
+                            div.appendChild(routing);
+                            createTable(data[tableKey]['routing_table'], 'node', 0, false)
+                            div.appendChild(document.createElement("hr")); // Add a line break between tables
+                        });
+                    })
+                    .catch(error => console.error('Error loading tables:', error));
+            }
+        }
+    </script>
+</body>
+</html>

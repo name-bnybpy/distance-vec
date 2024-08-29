@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D3.js Message with Arrow Example</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        .node {
+            fill: #69b3a2;
+            stroke: #333;
+            stroke-width: 2px;
+        }
+
+        .link {
+            stroke: #999;
+            stroke-opacity: 0.6;
+        }
+
+        .message {
+            fill: orange;
+        }
+
+        .message-arrow {
+            stroke: black;
+            stroke-width: 2px;
+            marker-end: url(#arrowhead);
+        }
+
+        .label {
+            font-family: Arial, sans-serif;
+            font-size: 10px;
+            fill: #333;
+        }
+    </style>
+</head>
+<body>
+
+<svg width="800" height="600"></svg>
+
+<script>
+    const graph = {
+        nodes: [
+            {id: 1, label: "Node 1"},
+            {id: 2, label: "Node 2"},
+            {id: 3, label: "Node 3"}
+        ],
+        links: [
+            {source: 1, target: 2},
+            {source: 2, target: 3},
+            {source: 3, target: 1}
+        ],
+        messages: [
+            {source: 1, target: 2, progress: 0.5},
+            {source: 2, target: 3, progress: 0.25}
+        ]
+    };
+
+    const svg = d3.select("svg"),
+        width = +svg.attr("width"),
+        height = +svg.attr("height");
+
+    const simulation = d3.forceSimulation(graph.nodes)
+        .force("link", d3.forceLink(graph.links).id(d => d.id).distance(150))
+        .force("charge", d3.forceManyBody().strength(-400))
+        .force("center", d3.forceCenter(width / 2, height / 2));
+
+    // Define arrowhead marker
+    svg.append("defs").append("marker")
+        .attr("id", "arrowhead")
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", 5)
+        .attr("refY", 0)
+        .attr("markerWidth", 6)
+        .attr("markerHeight", 6)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M0,-5L10,0L0,5")
+        .attr("fill", "black");
+
+    // Draw links
+    const link = svg.append("g")
+        .attr("class", "links")
+        .selectAll("line")
+        .data(graph.links)
+        .enter().append("line")
+        .attr("class", "link");
+
+    // Draw nodes
+    const node = svg.append("g")
+        .attr("class", "nodes")
+        .selectAll("circle")
+        .data(graph.nodes)
+        .enter().append("circle")
+        .attr("class", "node")
+        .attr("r", 10)
+        .call(d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended))
+        .on("click", handleClick);
+
+    // Draw labels
+    const nodeLabels = svg.append("g")
+        .attr("class", "labels")
+        .selectAll("text")
+        .data(graph.nodes)
+        .enter().append("text")
+        .attr("class", "label")
+        .text(d => d.label);
+
+    const linkLabels = svg.append("g")
+        .attr("class", "labels")
+        .selectAll("text")
+        .data(graph.links)
+        .enter().append("text")
+        .attr("class", "label")
+        .text(d => d.label);
+
+    // Draw messages (circles) and their arrows
+    const messageGroups = svg.append("g")
+        .attr("class", "messages")
+        .selectAll("g")
+        .data(graph.messages)
+        .enter().append("g")
+        .attr("class", "message-group");
+
+    const messageCircles = messageGroups.append("circle")
+        .attr("class", "message")
+        .attr("r", messageRadius)
+        .attr("fill", "orange");
+
+    const messageArrows = messageGroups.append("line")
+        .attr("class", "message-arrow")
+        .attr("marker-end", "url(#arrowhead)");
+
+    simulation.on("tick", () => {
+        link
+            .attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
+
+        node
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y);
+
+        nodeLabels
+            .attr("x", d => d.x + 12)
+            .attr("y", d => d.y + 3);
+
+        linkLabels
+            .attr("x", d => d.x + 12)
+            .attr("y", d => d.y + 3);
+
+        // Update message positions during the tick
+        d3.selectAll(".message-group").attr("transform", d => {
+            const position = getMessagePosition(d);
+            return `translate(${position.x}, ${position.y})`;
+        });
+
+        // Update the message arrows during the tick
+        d3.selectAll(".message-arrow")
+            .attr("x1", d => getArrowDirection(d).arrowStartX)
+            .attr("y1", d => getArrowDirection(d).arrowStartY)
+            .attr("x2", d => getArrowDirection(d).arrowEndX)
+            .attr("y2", d => getArrowDirection(d).arrowEndY);
+    });
+
+    function getMessagePosition(message) {
+        const source = graph.nodes.find(n => n.id === message.source);
+        const target = graph.nodes.find(n => n.id === message.target);
+
+        const x = source.x + (target.x - source.x) * message.progress;
+        const y = source.y + (target.y - source.y) * message.progress;
+
+        return { x, y };
+    }
+
+    function getArrowDirection(message) {
+        const source = graph.nodes.find(n => n.id === message.source);
+        const target = graph.nodes.find(n => n.id === message.target);
+
+        const dx = target.x - source.x;
+        const dy = target.y - source.y;
+
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const unitX = dx / length;
+        const unitY = dy / length;
+
+        // Position the arrow's start point just outside the message circle
+        const arrowLength = 10;  // Length of the arrow
+        const arrowStartX = unitX * messageRadius;
+        const arrowStartY = unitY * messageRadius;
+        const arrowEndX = arrowStartX + unitX * arrowLength;
+        const arrowEndY = arrowStartY + unitY * arrowLength;
+
+        return { endX: arrowEndX, endY: arrowEndY };
+    }
+
+    function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+    }
+
+    function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+    }
+
+    function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+    }
+
+    function updateMessages(newMessages) {
+        // Your existing updateMessages function
+        const messageCircles = d3.selectAll(".message-circle");
+        const messageArrows = d3.selectAll(".message-arrow");
+
+        // Update message circles
+        messageCircles
+            .data(newMessages)
+            .attr("cx", d => getMessagePosition(d).x)
+            .attr("cy", d => getMessagePosition(d).y);
+
+        // Update message arrows
+        messageArrows
+            .data(newMessages)
+            .attr("d", d => getTrianglePath(d));
+    }
+
+    document.getElementById("updateButton").addEventListener("click", function() {
+        fetch('/get_new_messages')
+            .then(response => response.json())
+            .then(data => {
+                updateMessages(data);
+            })
+            .catch(error => console.error('Error fetching new messages:', error));
+    });
+
+    function handleClick(event, d) {
+        alert(`You clicked on node ${d.id}`);
+    }
+</script>
+
+</body>
+</html>
